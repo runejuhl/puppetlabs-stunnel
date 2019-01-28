@@ -1,5 +1,8 @@
 ; This stunnel config is managed by Puppet.
 
+<% if @verify == 'default' -%>
+verify = default
+<% else -%>
 cert = <%= @certificate %>
 key = <%= @private_key %>
 <%- if @ca_file != nil -%>
@@ -12,8 +15,10 @@ capath = <%= @ca_path %>
 CRLfile = <%= @crl_file %>
 <%- end -%>
 sslVersion = <%= @ssl_version_real %>
-verify = 2
-<%- if @chroot != nil -%>
+
+verify = <%= @verify %>
+<% end -%>
+
 chroot = <%= @chroot %>
 <%- end -%>
 <%- if @user != nil -%>
