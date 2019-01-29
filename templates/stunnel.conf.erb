@@ -15,10 +15,10 @@ capath = <%= @ca_path %>
 CRLfile = <%= @crl_file %>
 <%- end -%>
 sslVersion = <%= @ssl_version_real %>
-
 verify = <%= @verify %>
 <% end -%>
 
+<%- if @chroot != nil -%>
 chroot = <%= @chroot %>
 <%- end -%>
 <%- if @user != nil -%>
