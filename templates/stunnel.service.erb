@@ -1,0 +1,13 @@
+# This file is managed by Puppet
+# DO NOT MAKE MANUAL CHANGES TO THIS FILE
+
+[Unit]
+Description=TLS tunnel for network daemons (<%= @name %>)
+After=syslog.target
+
+[Service]
+ExecStart=/usr/bin/stunnel -f <%= @conf_dir %>/<%= @name %>.conf
+Type=forking
+
+[Install]
+WantedBy=multi-user.target
