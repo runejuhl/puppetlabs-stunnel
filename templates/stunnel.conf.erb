@@ -19,7 +19,7 @@ capath = <%= @ca_path %>
 CRLfile = <%= @crl_file %>
 <%- end -%>
 sslVersion = <%= @ssl_version_real %>
-<%- if @verify != nil -%>
+<%- if @certificate != nil -%>
 verify = <%= @verify %>
 <%- end -%>
 <% end -%>
