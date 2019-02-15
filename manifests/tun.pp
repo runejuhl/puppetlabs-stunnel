@@ -205,6 +205,7 @@ define stunnel::tun(
           service { "stunnel-${name}.service":
             name     => "stunnel-${name}.service",
             enable   => true,
+            ensure   => 'running',
             provider => 'systemd',
           }
         }
