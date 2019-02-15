@@ -6,7 +6,7 @@ Description=TLS tunnel for network daemons (<%= @name %>)
 After=syslog.target
 
 [Service]
-ExecStart=/usr/bin/stunnel -f <%= @conf_dir %>/<%= @name %>.conf
+ExecStart=/usr/bin/stunnel <%= @conf_dir %>/<%= @name %>.conf
 Type=forking
 
 [Install]
