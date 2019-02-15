@@ -184,27 +184,29 @@ define stunnel::tun(
   }
 
   case $::osfamily {
-    'RedHat':{
-      /^[1-6]./: { notice "Unsupported operatingsystemrelease ${::operatingsystemrelease} "}
-      default: {
-        file { "/etc/systemd/system/stunnel-${name}.service":
-          ensure  => present,
-          mode    => '0770',
-          content => template("${module_name}/stunnel.service.erb"),
-          notify  => Exec['systemd_reload'],
-        }
+    'RedHat': {
+      case $::operatingsystemrelease {
+        /^[1-6]./: { notice "Unsupported operatingsystemrelease ${::operatingsystemrelease} "}
+        default: {
+          file { "/etc/systemd/system/stunnel-${name}.service":
+            ensure  => present,
+            mode    => '0770',
+            content => template("${module_name}/stunnel.service.erb"),
+            notify  => Exec['systemd_reload'],
+          }
 
-        exec { 'systemd_reload':
-          path        => ['/bin','/sbin'],
-          command     => 'systemctl daemon-reload',
-          refreshonly => true,
-          notify      => Service["stunnel-${name}.service"],
-        }
+          exec { 'systemd_reload':
+            path        => ['/bin','/sbin'],
+            command     => 'systemctl daemon-reload',
+            refreshonly => true,
+            notify      => Service["stunnel-${name}.service"],
+          }
 
-        service { "stunnel-${name}.service":
-          name     => "stunnel-${name}.service",
-          enable   => true,
-          provider => 'systemd',
+          service { "stunnel-${name}.service":
+            name     => "stunnel-${name}.service",
+            enable   => true,
+            provider => 'systemd',
+          }
         }
       }
     }
