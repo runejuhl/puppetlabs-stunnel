@@ -207,6 +207,7 @@ define stunnel::tun(
             enable   => true,
             ensure   => 'running',
             provider => 'systemd',
+            subscribe => File["${conf_dir}/${name}.conf"],
           }
         }
       }
