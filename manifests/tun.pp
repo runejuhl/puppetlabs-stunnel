@@ -203,11 +203,12 @@ define stunnel::tun(
           }
 
           service { "stunnel-${name}.service":
-            name     => "stunnel-${name}.service",
-            enable   => true,
-            ensure   => 'running',
-            provider => 'systemd',
-            subscribe => File["${conf_dir}/${name}.conf"],
+            name       => "stunnel-${name}.service",
+            enable     => true,
+            ensure     => 'running',
+            provider   => 'systemd',
+            hasrestart => true,
+            subscribe  => File["${conf_dir}/${name}.conf"],
           }
         }
       }
