@@ -2,12 +2,13 @@
 # DO NOT MAKE MANUAL CHANGES TO THIS FILE
 
 [Unit]
-Description=TLS tunnel for network daemons (<%= @name %>)
+Description=TLS tunnel for %i
 After=syslog.target
 
 [Service]
-ExecStart=/usr/bin/stunnel <%= @conf_dir %>/<%= @name %>.conf
-Type=forking
+ExecStart=/usr/bin/stunnel /etc/stunnel/%i.conf
+Type=simple
+PIDFile=/run/stunnel-%i.pid
 
 [Install]
 WantedBy=multi-user.target

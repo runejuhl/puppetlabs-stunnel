@@ -32,11 +32,12 @@
 #
 # Copyright 2012 Puppet Labs, LLC
 #
-class stunnel(
-  $package  = $stunnel::params::package,
-  $service  = $stunnel::params::service,
-  $conf_dir = $stunnel::params::conf_dir
-) inherits stunnel::params {
+class stunnel (
+  String                         $package,
+  String                         $service,
+  Stdlib::Absolutepath           $conf_dir,
+  Optional[Stdlib::Absolutepath] $log_dir,
+) {
 
   package { $package:
     ensure => present,
@@ -49,7 +50,16 @@ class stunnel(
     recurse => true,
   }
 
-  if $::osfamily == 'Debian' {
+  if $log_dir {
+    file { $log_dir:
+      ensure =>  'directory',
+      owner  => 'root',
+      group  => 'root',
+      mode   => 'g=rx,o-rwx',
+    }
+  }
+
+  if $facts['osfamily'] == 'Debian' {
     exec { 'enable stunnel':
       command => 'sed -i "s/ENABLED=0/ENABLED=1/" /etc/default/stunnel4',
       path    => [ '/bin', '/usr/bin' ],
@@ -57,14 +67,23 @@ class stunnel(
       require => Package[$package],
       before  => Service[$service],
     }
-
-    # There isn't a sysvinit script installed by the "stunnel" package on
-    # Red Hat systems.
-    service { $service:
-      ensure     => running,
-      enable     => true,
-      hasrestart => true,
-      hasstatus  => false,
-    }
   }
+
+  unless $facts.dig('systemd') {
+    fail('Unsupported operating system')
+  }
+
+  file { '/etc/systemd/system/stunnel@.service':
+    ensure => present,
+    mode   => '0664',
+    source => "puppet:///modules/${module_name}/stunnel.service",
+    notify => Exec['systemd_reload'],
+  }
+
+  exec { 'systemd_reload':
+    path        => ['/bin','/sbin'],
+    command     => 'systemctl daemon-reload',
+    refreshonly => true,
+  }
+
 }

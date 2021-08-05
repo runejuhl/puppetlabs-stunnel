@@ -83,7 +83,7 @@
 #
 # [*chroot_mode*]
 #   The mode used for a chroot dir when specified.
-#   In some versions, the log file is placed under chroot, and 
+#   In some versions, the log file is placed under chroot, and
 #   permissions may be needed to read the file.
 #   Note: Should not be writable except by owner.
 #   Default: '0600'
@@ -128,46 +128,70 @@
 # Copyright 2012 Puppet Labs, LLC
 #
 define stunnel::tun(
-    $accept,
-    $connect,
-    $chroot      = undef,
-    $user        = undef,
-    $group       = undef,
-    $certificate = undef,
-    $private_key = undef,
-    $ca_file     = undef,
-    $crl_file    = undef,
-    $ssl_version = 'TLSv1',
-    $verify      = '2',
-    $client      = false,
-    $pid_file    = "/${name}.pid",
-    $debug_level = '0',
-    $log_dest    = "/var/log/${name}.log",
-    $conf_dir    = $stunnel::params::conf_dir,
-    $chroot_mode = '0600'
+  Array[Variant[String, Integer]] $connect,
+  Optional[Variant[String]]       $accept      = undef,
+  Boolean                         $retry       = false,
+  Boolean                         $reset       = true,
+  Enum['prio', 'rr']              $failover    = 'prio',
+  Optional[Stdlib::Absolutepath]  $chroot      = undef,
+  Optional[String]                $user        = undef,
+  Optional[String]                $group       = undef,
+  Optional[Stdlib::Absolutepath]  $certificate = undef,
+  Optional[Stdlib::Absolutepath]  $private_key = undef,
+  Optional[Stdlib::Absolutepath]  $ca_file     = undef,
+  Optional[Stdlib::Absolutepath]  $ca_path     = undef,
+  Optional[Stdlib::Absolutepath]  $crl_file    = undef,
+  Pattern[
+    /^SSLv2$|^SSLv3$|^TLSv1$|^TLSv1.1$|^TLSv1.2$/
+  ]                               $ssl_version = 'TLSv1.2',
+  Optional[Integer[0,4]]          $verify      = undef,
+  Boolean                         $client      = false,
+  # stunnel creates a PID file even though the man page says that it should not;
+  # we give it a value to avoid defaulting to `/var/run/stunnel.pid`
+  Optional[Stdlib::Absolutepath]  $pid_file    = "/run/stunnel-${name}.pid",
+  Variant[
+    Enum['emerg', 'alert', 'crit', 'err', 'warning', 'notice', 'info', 'debug'],
+    Integer[0,7]]                 $debug_level = 'emerg',
+  Optional[Stdlib::Absolutepath]  $log_dest    = undef,
+  Boolean                         $syslog      = true,
+  Stdlib::Absolutepath            $conf_dir    = lookup('stunnel::conf_dir', Stdlib::Absolutepath, undef, undef),
+  Stdlib::Filemode                $chroot_mode = '0600',
 ) {
 
+  include stunnel
+
   unless $verify == 'default' {
-    $ssl_version_real = $ssl_version ? {
-      'tlsv1' => 'TLSv1',
-      'tlsv1.1' => 'TLSv1.1',
-      'tlsv1.2' => 'TLSv1.2',
-      'sslv2' => 'SSLv2',
-      'sslv3' => 'SSLv3',
-      default => $ssl_version,
+    if !$ssl_version {
+      fail('$ssl_version must have a value if $verify is set to "default".')
     }
-
-    validate_re($ssl_version_real, '^SSLv2$|^SSLv3$|^TLSv1$|^TLSv1.1$|^TLSv1.2$', 'The option ssl_version must have a value that is SSLv2, SSLv3, TLSv1, TLSv1.1, or TLSv1.2. The default is TLSv1. SSLv2 should be avoided.')
-  }
-
-  $client_on = $client ? {
-    true  => 'yes',
-    false => 'no',
   }
 
   file { "${conf_dir}/${name}.conf":
-    ensure  => file,
-    content => template("${module_name}/stunnel.conf.erb"),
+    ensure  => 'file',
+    content => epp("${module_name}/stunnel.conf.epp", {
+      accept      => $accept,
+      ca_file     => $ca_file,
+      ca_path     => $ca_path,
+      certificate => $certificate,
+      chroot      => $chroot,
+      chroot_mode => $chroot_mode,
+      client      => $client.stunnel::to_yesno,
+      connect     => $connect,
+      crl_file    => $crl_file,
+      debug_level => $debug_level,
+      failover    => $failover,
+      log_dest    => $log_dest,
+      name        => $name,
+      pid_file    => $pid_file,
+      private_key => $private_key,
+      reset       => $reset.stunnel::to_yesno,
+      retry       => $retry.stunnel::to_yesno,
+      ssl_version => $ssl_version,
+      syslog      => $syslog.stunnel::to_yesno,
+      user        => $user,
+      group       => $group,
+      verify      => $verify,
+    }),
     mode    => '0644',
     owner   => '0',
     group   => '0',
@@ -183,35 +207,14 @@ define stunnel::tun(
     }
   }
 
-  case $::osfamily {
-    'RedHat': {
-      case $::operatingsystemrelease {
-        /^[1-6]./: { notice "Unsupported operatingsystemrelease ${::operatingsystemrelease} "}
-        default: {
-          file { "/etc/systemd/system/stunnel-${name}.service":
-            ensure  => present,
-            mode    => '0770',
-            content => template("${module_name}/stunnel.service.erb"),
-            notify  => Exec['systemd_reload'],
-          }
-
-          exec { 'systemd_reload':
-            path        => ['/bin','/sbin'],
-            command     => 'systemctl daemon-reload',
-            refreshonly => true,
-            notify      => Service["stunnel-${name}.service"],
-          }
-
-          service { "stunnel-${name}.service":
-            name       => "stunnel-${name}.service",
-            enable     => true,
-            ensure     => 'running',
-            provider   => 'systemd',
-            hasrestart => true,
-            subscribe  => File["${conf_dir}/${name}.conf"],
-          }
-        }
-      }
-    }
+  service { "stunnel@${name}.service":
+    ensure     => 'running',
+    enable     => true,
+    provider   => 'systemd',
+    hasrestart => true,
+    subscribe  => [
+      File["${conf_dir}/${name}.conf"],
+      Exec['systemd_reload'],
+    ],
   }
 }

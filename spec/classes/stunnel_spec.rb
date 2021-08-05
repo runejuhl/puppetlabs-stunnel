@@ -24,11 +24,4 @@ describe 'stunnel' do
     it { is_expected.to_not contain_package('stunnel') }
   end
 
-  context 'stunnel::tun' do
-    it { is_expected.to contain_class('stunnel::params') }
-  end
-
-  context 'stunnel::init' do
-    it { is_expected.to contain_class('stunnel::params') }
-  end
 end
